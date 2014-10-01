@@ -19,6 +19,7 @@ Add `git` to your [Cask](https://github.com/cask/cask) file:
 * [git-tag?](#git-tag-tag) `(tag)`
 * [git-on-branch?](#git-on-branch-branch) `(branch)`
 * [git-remote?](#git-remote-name) `(name)`
+* [git-ls-remote?](#git-ls-remote-url) `(url)`
 
 ### Info
 
@@ -103,6 +104,16 @@ Return true if remote with NAME exists, false otherwise.
 ```lisp
 (git-remote? "existing") ;; => t
 (git-remote? "non-existing") ;; => nil
+```
+
+### git-ls-remote? `(url)`
+
+Return `true' if it successfully talked with REPOSITORY.
+If optional REPOSITORY is not set then use local repository path declared by `default-directory'.
+
+```lisp
+(git-ls-remote? "existing") ;; => t
+(git-ls-remote? "non-existing") ;; => nil
 ```
 
 ### git-on-branch `()`

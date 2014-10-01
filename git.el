@@ -108,14 +108,6 @@ If optional REPOSITORY is not set then use local repository path declared by `de
 	(when (zerop exit-code)
 	  t)))))
 
-(defun process-exit-code-and-output (program &rest args)
-  "Run PROGRAM with ARGS and return the exit code and output in a list."
-  (with-temp-buffer 
-    ;; (list (apply 'call-process program nil (current-buffer) nil args)
-    (car (list (apply 'call-process program nil (current-buffer) nil args)	  
-          (buffer-string)))))
-
-
 (defun git-branch? (branch)
   "Return true if there's a branch called BRANCH."
   (-contains? (git-branches) branch))
