@@ -82,15 +82,18 @@ STRING is a `format' string, and ARGS are the formatted objects."
 	   (s-join " " (git--args command args))
 	   (buffer-string)))))))
 
-(defun git-repo? (directory)
+(defun git-repo? (&optional directory) 
   "Return true if there is a git repo in DIRECTORY, false otherwise."
-  (or
-   (f-dir? (f-expand ".git" directory))
-   (and
-    (f-dir? (f-expand "info" directory))
-    (f-dir? (f-expand "objects" directory))
-    (f-dir? (f-expand "refs" directory))
-    (f-file? (f-expand "HEAD" directory)))))
+  (let ((default-directory (if directory
+			       (f-full directory)
+			     (file-name-as-directory default-directory))))
+    (or
+     (f-dir? (f-expand ".git"))
+     (and
+      (f-dir? (f-expand "info"))
+      (f-dir? (f-expand "objects"))
+      (f-dir? (f-expand "refs"))
+      (f-file? (f-expand "HEAD"))))))
 
 (defun git-ls-remote? (&optional repository)
   "Return `true' if it successfully talked with REPOSITORY.
@@ -128,7 +131,7 @@ If optional REPOSITORY is not set then use local repository path declared by `de
   (equal branch (git-on-branch)))
 
 (defun git-add (&rest files)
-  "Add PATH or everything."
+  "Add FILES or everything."
   (git-run "add" (or files ".")))
 
 (defun git-branch (branch)
@@ -136,6 +139,10 @@ If optional REPOSITORY is not set then use local repository path declared by `de
   (if (git-branch? branch)
       (git-error "Branch already exists %s" branch)
     (git-run "branch" branch)))
+
+(defun git-branch-set-upstream (branch remote)
+  "Set up BRANCH tracking information so REMOTE branch is considered BRANCH's upstream branch."
+  (git-run "branch" (concat "--set-upstream-to=" remote "/" branch) branch))
 
 (defun git-branches ()
   "List all available branches."
@@ -156,7 +163,7 @@ If optional REPOSITORY is not set then use local repository path declared by `de
 
 (defun git-commit (message &rest files)
   "Commit FILES (or added files) with MESSAGE."
-  (git-run "commit" (or files "-a") "--message" message files))
+  (git-run "commit" "--allow-empty" "--allow-empty-message" (or files "-a") "--message" message files))
 
 (defun git-fetch (&optional repo)
   "Fetch REPO."
@@ -189,18 +196,25 @@ If BARE is true, create a bare repo."
      logs)))
 
 (defun git-config (option &optional value)
-  "Set or get config OPTION. Set to VALUE if present."
+  "Set or get config OPTION.  Set to VALUE if present."
   (condition-case err
       (git--clean (git-run "config" option value))
     (git-error)))
 
 (defun git-pull (&optional repo ref)
-  "Pull REF from REPO."
-  (git-run "pull" repo ref))
+  "Set REPO and pull REF."
+  (when (and repo ref)
+      (git-run "pull" repo ref)))
 
-(defun git-push (&optional repo ref)
-  "Push REF to REPO."
-  (git-run "push" repo ref))
+(defun git-pull-all ()
+  "Fetch all remotes."
+  (git-run "pull" "--all"))
+
+
+(defun git-push (&optional repo ref set-upstream)
+  "Set REPO and update remote REF along with associated objects.
+If SET-UPSTREAM is non-nil then add upstream reference."
+  (git-run "push" (when set-upstream "-u") repo ref))
 
 (defun git-remote? (name)
   "Return true if remote with NAME exists, false otherwise."
@@ -210,9 +224,9 @@ If BARE is true, create a bare repo."
   "Return list of all remotes."
   (git--lines (git-run "remote")))
 
-(defun git-remote-add (name url)
-  "Add remote with NAME and URL."
-  (git-run "remote" "add" name url))
+(defun git-remote-add (name url &rest args)
+  "Add remote with NAME and URL and ARGS."
+  (git-run "remote" "add" args name url))
 
 (defun git-remote-remove (name)
   "Remove remote with NAME."
@@ -284,12 +298,15 @@ otherwise nil is returned."
 ;;;; Helpers
 
 (defun git--lines (string)
+  "Return list from STRING."
   (-reject 's-blank? (-map 's-trim (s-lines string))))
 
 (defun git--clean (string)
+  "Clean and trim STRING."
   (s-presence (s-trim string)))
 
 (defun git--args (command &rest args)
+  "Return COMMAND and list of ARGS."
   (-flatten (-reject 'null (append (list "--no-pager" command) args git-args))))
 
 
