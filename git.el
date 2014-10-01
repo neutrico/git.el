@@ -28,6 +28,8 @@
 ;; Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
 ;; Boston, MA 02110-1301, USA.
 
+;;; Commentary:
+
 ;;; Code:
 
 ;; Todo: no-pager
@@ -62,21 +64,23 @@ STRING is a `format' string, and ARGS are the formatted objects."
 
 (defun git-run (command &rest args)
   "Run git COMMAND with ARGS."
-  (let ((default-directory (f-full git-repo)))
+  (let ((default-directory (if git-repo
+			       (f-full git-repo)
+			     (file-name-as-directory default-directory))))
     (with-temp-buffer
       (let ((exit-code
-             (apply
-              'call-process
-              (append
-               (list git-executable nil (current-buffer) nil)
-               (git--args command args)))))
-        (if (zerop exit-code)
-            (buffer-string)
-          (git-error
-           "Error running command: %s %s\n%s"
-           git-executable
-           (s-join " " (git--args command args))
-           (buffer-string)))))))
+	     (apply
+	      'call-process
+	      (append
+	       (list git-executable nil (current-buffer) nil)
+	       (git--args command args)))))
+	(if (zerop exit-code)
+	    (buffer-string)
+	  (git-error
+	   "Error running command: %s %s\n%s"
+	   git-executable
+	   (s-join " " (git--args command args))
+	   (buffer-string)))))))
 
 (defun git-repo? (directory)
   "Return true if there is a git repo in DIRECTORY, false otherwise."
@@ -87,6 +91,30 @@ STRING is a `format' string, and ARGS are the formatted objects."
     (f-dir? (f-expand "objects" directory))
     (f-dir? (f-expand "refs" directory))
     (f-file? (f-expand "HEAD" directory)))))
+
+(defun git-ls-remote? (&optional repository)
+  "Return `true' if it successfully talked with REPOSITORY.
+If optional REPOSITORY is not set then use local repository path declared by `default-directory'."
+  (let ((default-directory (file-name-as-directory default-directory)))
+    (with-temp-buffer
+      (let ((exit-code
+	     (car
+	      (list
+	       (apply
+		'call-process
+		(append
+		 (list git-executable nil (current-buffer) nil)
+		 (git--args "ls-remote" "--exit-code" repository)))))))
+	(when (zerop exit-code)
+	  t)))))
+
+(defun process-exit-code-and-output (program &rest args)
+  "Run PROGRAM with ARGS and return the exit code and output in a list."
+  (with-temp-buffer 
+    ;; (list (apply 'call-process program nil (current-buffer) nil args)
+    (car (list (apply 'call-process program nil (current-buffer) nil args)	  
+          (buffer-string)))))
+
 
 (defun git-branch? (branch)
   "Return true if there's a branch called BRANCH."
